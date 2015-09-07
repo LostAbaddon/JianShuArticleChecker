@@ -7,7 +7,12 @@
 
 	"permissions": [
 		"tabs",
-		"http://www.jianshu.com/p/*"
+		"http://*/",
+		"http://*/*",
+		"http://*/*/*",
+		"https://*/",
+		"https://*/*",
+		"https://*/*/*"
 	],
 	"browser_action": {
 		"default_icon": "icon.png",
@@ -16,7 +21,7 @@
 	"icons": {"48": "icon.png"},
 
 	"background": {
-		"scripts": ["servo.js"]
+		"scripts": ["common.js", "servo.js"]
 	},
 
 	"content_scripts": [

@@ -1,6 +1,120 @@
+// Basic
 var send = function (action, msg, callback) {
 	chrome.runtime.sendMessage({action: action, msg: msg}, callback);
 };
+
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+	var msg = request.msg;
+	switch (request.action) {
+		case "log":
+			console.log('log: ', msg);
+		break;
+		case "CheckArticle":
+			CheckArticle(msg);
+		break;
+		case "BaiduResult":
+			getCheckResult(msg.slug, msg.url, msg.state, msg.result);
+		break;
+		// default:
+		// 	console.log("Get Request:");
+		// 	console.log(request);
+	}
+});
+
+// Functons
+const TRIM = /^[ 　\n\t\r]+|[ 　\n\t\r]+$/mg
+const SYMBOLS = /[\?,\.;:'"`!=\+\*\\\/_~<>\(\)\[\]\{\}\|@#\$\%\^\&－＋＝—？！／、《》【】｛｝（）×｀～＠＃￥％…＆&｜“”‘’；：，。·〈〉〖〗［］「」『』　]/g;
+
+const LINENUM = 1;
+const WORDAGELIMIT = 500;
+
+const QUERYBAIDU = 'https://www.baidu.com/s?wd=';
+const QUERYBING = 'http://cn.bing.com/search?q=';
+
+var tasks = {};
+
+function CheckArticle (slug) {
+	tasks[slug] = {};
+	var article = document.querySelector('div.article');
+	var wordage = article.querySelector('span.wordage');
+	wordage = wordage.innerText;
+	wordage = wordage.match(/\d+/);
+	if (!!wordage) {
+		wordage = wordage[0];
+		wordage = parseInt(wordage);
+	}
+	else {
+		wordage = 0;
+	}
+	var title = article.querySelector('h1.title');
+	title = title.innerText;
+	var content = article.querySelector('div.show-content');
+	content = content.innerText
+		.split(/[。.\n]+/)
+		.map(function (line) {
+			return line.replace(SYMBOLS, ' ').replace(/[a-zA-Z\d]+/g, ' ').replace(/ {2,}/mg, ' ').replace(TRIM, '');
+		})
+		.filter(function (line) {
+			var len = line.length;
+			return (len > 0) && (len <= 35);
+		})
+		.sort(function (la, lb) {
+			return lb.length - la.length;
+		});
+	var lines = [], len = content.length, index, i;
+	if (len > LINENUM) len = LINENUM;
+	lines = content.splice(0, len);
+	len = content.length;
+	if (len > LINENUM) len = LINENUM;
+	for (i = 0; i < len; i++) {
+		index = Math.floor(Math.random() * content.length);
+		lines.push(content.splice(index, 1)[0]);
+	}
+
+	if (wordage < WORDAGELIMIT) {
+		console.log('字数太少！');
+	}
+	else {
+		lines.map(function (line) {
+			var baidu = QUERYBAIDU + line.replace(/ /mg, '%20');
+			var bing = QUERYBING + line.replace(/ /mg, '+');
+			console.log(baidu);
+			console.log(bing);
+			tasks[baidu] = {
+				done: false,
+				result: 0
+			};
+			tasks[bing] = {
+				done: false,
+				result: 0
+			};
+			line = line.split(' ');
+			send('check_url_baidu', {
+				slug: slug,
+				url: baidu,
+				keys: line
+			});
+			send('check_url_bing', {
+				slug: slug,
+				url: bing,
+				keys: line
+			});
+		});
+	}
+}
+
+function getCheckResult (slug, url, state, result) {
+	console.log('=============');
+	console.log(slug);
+	console.log(url);
+	console.log(state);
+	console.log(result);
+}
+
+
+
+
+
 
 function show (msg) {
 	openElement(mention);
@@ -880,21 +994,6 @@ function onArticleFilterEvent (event) {
 
 var start_time = 0, start_analyze = 0;
 var tamarked_task = null;
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-	var msg = request.msg;
-	switch (request.action) {
-		case "log":
-			console.log('log: ', msg);
-		break;
-		case "CheckArticle":
-			console.log('Request For Keyword Filter');
-		break;
-		default:
-			console.log("Get Request:");
-			console.log(request);
-		break;
-	}
-});
 
 var pad, mention, switcher, notes_result, analy_result, md_result, html_result, showHTML = true, subpages = [], article_records, article_filter, keywords_filter;
 function switchEvent () {

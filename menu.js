@@ -2,20 +2,9 @@ const URL_CHECKER = /(?:www\.)?jianshu\.(?:com|io)\/p\/(\w+)/i;
 var tab = null;
 
 // Badget Common
-function sendCallback (request) {
-	if (!request || !request.origin || !request.success) return;
-	switch(request.origin) {
-		case "analyzeArticles":
-			// buttons.startAnalyze._triggers.map(function (target) {
-			// 	target[1].value = '';
-			// 	localStorage.removeItem(target[0]);
-			// });
-		break;
-	}
-}
 var send = function (action, msg) {
-	if (!!tab) chrome.tabs.sendMessage(tab.id, {action: action, msg: msg}, sendCallback);
-	chrome.runtime.sendMessage({action: action, msg: msg, tabID: tab.id}, sendCallback);
+	if (!!tab) chrome.tabs.sendMessage(tab.id, {action: action, msg: msg});
+	chrome.runtime.sendMessage({action: action, msg: msg, tabID: tab.id});
 };
 var log = function (msg) {
 	send('log', msg);
@@ -116,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		url = url.match(URL_CHECKER);
 		if (!!url) {
 			url = url[1];
-			send("check_article", url);
+			send("CheckArticle", url);
 		}
 		window.close();
 
