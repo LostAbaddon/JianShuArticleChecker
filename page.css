@@ -1,0 +1,70 @@
+._extension_mention {
+	position: fixed;
+	display: none;
+	box-size: border-box;
+	top: 10px;
+	left: 50%;
+	width: 300px;
+	height: 50px;
+	margin-left: -150px;
+	z-index: 2000;
+	background: rgba(250, 250, 255, 0.9);
+	color: black;
+	box-shadow: 5px 5px 6px black, inset 2px 2px 2px white, inset -2px -2px 2px gray;
+	border-radius: 10px;
+	padding: 10px;
+	text-align: center;
+}
+
+._extension_pad {
+	position: fixed;
+	display: none;
+	box-size: border-box;
+	top: 10%;
+	left: 10%;
+	width: 80%;
+	height: 80%;
+	z-index: 2000;
+	overflow-y: scroll;
+	background: rgba(250, 250, 255, 0.9);
+	color: black;
+	box-shadow: 5px 5px 6px black, inset 2px 2px 2px white, inset -2px -2px 2px gray;
+	border-radius: 10px;
+	padding: 10px;
+}
+
+._extension_pad table {
+	border: 1px solid rgb(50, 50, 50);
+	padding: 5px;
+	margin-left: 40px;
+}
+._extension_pad table thead tr {
+	margin-top: 1px;
+	margin-bottom: 1px;
+}
+._extension_pad table th {
+	background-color: rgb(200, 200, 220);
+	text-align: center;
+}
+._extension_pad table tr {
+	margin-bottom: 1px;
+	background-color: rgb(255, 255, 255);
+	border-bottom: 1px solid rgb(200, 200, 200);
+}
+._extension_pad table tr:last-child {
+	border-bottom: none;
+}
+._extension_pad table tr:nth-child(4n-1) {
+	background-color: rgb(255, 240, 240);
+}
+._extension_pad table tr:nth-child(4n-2) {
+	background-color: rgb(240, 255, 240);
+}
+._extension_pad table tr:nth-child(4n-3) {
+	background-color: rgb(240, 240, 255);
+}
+._extension_pad table td {
+	padding: 5px;
+	padding-left: 10px;
+	padding-right: 10px;
+}
