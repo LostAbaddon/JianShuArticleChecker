@@ -124,7 +124,7 @@ function CheckArticle (slug) {
 		dealErrorTooLittle(wordage, image_count, video_count, origin);
 	}
 	else {
-		frame_content.innerHTML = '<div class="crx_wordage_mention">检查相似文章中，请稍候。。。</div>';
+		frame_content.innerHTML = '<div class="crx_wordage_mention">检查相似文章中，请稍候……</div>';
 		// Show UI
 		showFrame();
 		// Call Worker
@@ -199,13 +199,18 @@ function analyzeTasks (slug) {
 
 	// Append Result
 	var html = '';
-	html = '<div class="crx_action_area"><button class="action_samearticle">自动生成回复</button></div>';
-	html += '<div class="crx_samearticle_mention">下列文章与本文很相似：</div>';
-	articles_mention = '以下文章与您这篇文章非常相似：\n\n';
-	result.map(function (site) {
-		html += '<div class="crx_samearticle_lemma"><a class="crx_samearticle_link" href="' + site.link + '" target="_blank">' + site.title + '</a><span class="crx_samearticle_rate">相似度：' + site.rank + '</span></div>';
-		articles_mention += '《' + site.title + '》（' + site.link + '）\n';
-	});
+	if (result.length > 0) {
+		html = '<div class="crx_action_area"><button class="action_samearticle">自动生成回复</button></div>';
+		html += '<div class="crx_samearticle_mention">下列文章与本文很相似：</div>';
+		articles_mention = '以下文章与您这篇文章非常相似：\n\n';
+		result.map(function (site) {
+			html += '<div class="crx_samearticle_lemma"><a class="crx_samearticle_link" href="' + site.link + '" target="_blank">' + site.title + '</a><span class="crx_samearticle_rate">相似度：' + site.rank + '</span></div>';
+			articles_mention += '《' + site.title + '》（' + site.link + '）\n';
+		});
+	}
+	else {
+		html += '<div class="crx_samearticle_mention">目前网上没有文章与这篇文章相似！</div>';
+	}
 	// Set Mention
 	frame_content.innerHTML = html;
 

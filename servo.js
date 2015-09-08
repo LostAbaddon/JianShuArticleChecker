@@ -29,8 +29,8 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 // Functions
-const RANKLIMIT = 50;
-const RANKGATE = 1;
+const RANKLIMIT = 30;
+const RANKGATE = 3;
 
 function checkBaiduURL (tab, slug, url, keys) {
 	console.log('Call: ' + url);
