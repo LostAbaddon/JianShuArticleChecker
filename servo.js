@@ -14,6 +14,9 @@ function requestHandler (request, sender, callback) {
 		case "check_url_baidu":
 			checkBaiduURL(request.__id, data.slug, data.url, data.keys);
 		break;
+		case "check_url_bing":
+			checkBingURL(request.__id, data.slug, data.url, data.keys);
+		break;
 		// default:
 		// 	console.log('Get Request:');
 		// 	console.log(request);
@@ -27,10 +30,13 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // Functions
 const RANKLIMIT = 50;
+const RANKGATE = 1;
 
 function checkBaiduURL (tab, slug, url, keys) {
+	console.log('Call: ' + url);
 	ajax(url, {
 		success: function (text) {
+			console.log('Fetch:: ' + url);
 			text = convertPageToContent(text);
 			var container = document.createElement('div');
 			container.innerHTML = text;
@@ -49,13 +55,37 @@ function checkBaiduURL (tab, slug, url, keys) {
 				var title = elem.querySelector('h3.t').querySelector('a');
 				var link = title.href;
 				title = title.innerText;
-				console.log(title, link);
-				var content = elem.querySelector('.c-abstract');
-				// 去除百度知道等链接中的提问部分，这是干扰因素
-				var last = content.children;
-				last = last[last.length - 1];
-				if (last.nodeName.toLowerCase() === 'a' && last.className === 'c') content.removeChild(last);
-				content = content.innerText;
+				var content = elem.querySelector('.c-abstract'), last;
+				// Normal Page
+				if (content) {
+					// 去除百度知道等链接中的提问部分，这是干扰因素
+					last = content.children;
+					last = last[last.length - 1];
+					if (last && last.nodeName && last.nodeName.toLowerCase() === 'a' && last.className === 'c') content.removeChild(last);
+				}
+				else {
+					content = elem.querySelector('.c-row');
+					// 百度百科与百度图片
+					if (content) {
+						content = content.querySelector('p');
+						// 百度图片
+						if (!content) {
+							content = elem.querySelector('.c-row c-span-last')
+						}
+					}
+					else {
+						content = elem.querySelector('table');
+						// 百度贴吧
+						if (content) {
+							content = content.querySelector('.op-tieba-general-main-col');
+						}
+						else {
+
+						}
+					}
+				}
+				if (content) content = content.innerText;
+				else content = '';
 				var rank = rankPage(content, keys);
 				if (rank > RANKLIMIT) {
 					links.push({
@@ -81,6 +111,57 @@ function checkBaiduURL (tab, slug, url, keys) {
 		}
 	});
 }
+function checkBingURL (tab, slug, url, keys) {
+	console.log('Call: ' + url);
+	ajax(url, {
+		success: function (text) {
+			console.log('Fetch:: ' + url);
+			text = convertPageToContent(text);
+			var container = document.createElement('div');
+			container.innerHTML = text;
+			container = container.querySelector('#b_results');
+			if (!container) {
+				send(tab, 'BingResult', {
+					state: 'ParseError',
+					slug: slug,
+					url: url
+				});
+				return;
+			}
+			container = container.querySelectorAll('li.algo');
+			var links = [];
+			[].map.call(container, function (elem) {
+				var title = elem.querySelector('h2').querySelector('a');
+				var link = title.href;
+				title = title.innerText;
+				var content = elem.querySelector('.b_caption');
+				content = content.querySelector('p');
+				content = content.innerText;
+				var rank = rankPage(content, keys);
+				if (rank > RANKLIMIT) {
+					links.push({
+						title: title,
+						link: link,
+						rank: rank
+					});
+				}
+			});
+			send(tab, 'BingResult', {
+				state: 'OK',
+				result: links,
+				slug: slug,
+				url: url
+			});
+		},
+		fail: function () {
+			send(tab, 'BingResult', {
+				state: 'FetchError',
+				slug: slug,
+				url: url
+			});
+		}
+	});
+}
 
 function convertPageToContent (page) {
 	page = page.replace(/<doctype[\w\W]*?>/gi, '');
@@ -95,9 +176,12 @@ function rankPage (page, keys) {
 	var total = 0, rank = 0;
 	keys.map(function (line) {
 		var score = line.length;
+		score -= RANKGATE;
+		if (score < 0) score = 0;
 		total += score;
 		if (page.indexOf(line) >= 0) rank += score;
 	});
+	if (total === 0) total = 1;
 	rank /= total;
 	rank *= 100;
 	return rank;

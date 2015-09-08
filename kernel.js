@@ -15,14 +15,59 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 		case "BaiduResult":
 			getCheckResult(msg.slug, msg.url, msg.state, msg.result);
 		break;
+		case "BingResult":
+			getCheckResult(msg.slug, msg.url, msg.state, msg.result);
+		break;
 		// default:
 		// 	console.log("Get Request:");
 		// 	console.log(request);
 	}
 });
 
+// Initial
+var frame, frame_content, articles_mention = '';
+document.addEventListener('DOMContentLoaded', function () {
+	var body = document.body;
+	// 创建提示UI
+	frame = newUI('div', 'crx_frame hide');
+	// 内容呈现
+	frame_content = newUI('div', 'crx_content');
+	frame.appendChild(frame_content);
+	// 添加到页面
+	body.appendChild(frame);
+
+	// 提示UI内事件
+	frame.addEventListener('click', function (e) {
+		var target = e.target;
+		var comment = document.querySelector('#comment_content');
+		// 自动生成字数太少的回复
+		if (target.classList.contains('action_wordage')) {
+			hideFrame();
+			comment.textContent = '抱歉，简书首页对文章的篇幅是有一定要求的（诗歌除外）！\n您的文章有点短哟！';
+			comment.focus();
+		}
+		// 自动生成相似文章的回复
+		else if (target.classList.contains('action_samearticle')) {
+			hideFrame();
+			comment.textContent = '抱歉，请问您是这篇文章的原作者么？\n因为在网上发现' + articles_mention + '\n所以想询问一下是否是原作者，避免错误处理。\n谢谢！';
+			comment.focus
+		}
+		else {
+			console.log(e);
+		}
+		// 避免事件冒泡
+		e.stopPropagation();
+		e.preventDefault();
+		e.cancelBubble = true;
+	});
+	// 关闭提示UI的事件
+	body.addEventListener('click', function () {
+		hideFrame();
+	});
+});
+
 // Functons
-const TRIM = /^[ 　\n\t\r]+|[ 　\n\t\r]+$/mg
+const TRIM = /^\s+|\s+$/g;
 const SYMBOLS = /[\?,\.;:'"`!=\+\*\\\/_~<>\(\)\[\]\{\}\|@#\$\%\^\&－＋＝—？！／、《》【】｛｝（）×｀～＠＃￥％…＆&｜“”‘’；：，。·〈〉〖〗［］「」『』　]/g;
 
 const LINENUM = 1;
@@ -35,6 +80,7 @@ var tasks = {};
 
 function CheckArticle (slug) {
 	tasks[slug] = {};
+	var task = tasks[slug];
 	var article = document.querySelector('div.article');
 	var wordage = article.querySelector('span.wordage');
 	wordage = wordage.innerText;
@@ -49,14 +95,17 @@ function CheckArticle (slug) {
 	var title = article.querySelector('h1.title');
 	title = title.innerText;
 	var content = article.querySelector('div.show-content');
-	content = content.innerText
+	var image_count = content.querySelectorAll('img').length;
+	var video_count = content.querySelectorAll('div.video-package').length;
+	var origin = content.innerText;
+	content = origin
 		.split(/[。.\n]+/)
 		.map(function (line) {
-			return line.replace(SYMBOLS, ' ').replace(/[a-zA-Z\d]+/g, ' ').replace(/ {2,}/mg, ' ').replace(TRIM, '');
+			return line.replace(SYMBOLS, ' ').replace(/[a-zA-Z\d]+/g, ' ').replace(/\s+/g, ' ').replace(TRIM, '');
 		})
 		.filter(function (line) {
 			var len = line.length;
-			return (len > 0) && (len <= 35);
+			return (len > 0) && (len <= 40); // 百度搜索字段最长不得超过40字符
 		})
 		.sort(function (la, lb) {
 			return lb.length - la.length;
@@ -72,21 +121,23 @@ function CheckArticle (slug) {
 	}
 
 	if (wordage < WORDAGELIMIT) {
-		console.log('字数太少！');
+		dealErrorTooLittle(wordage, image_count, video_count, origin);
 	}
 	else {
+		frame_content.innerHTML = '<div class="crx_wordage_mention">检查相似文章中，请稍候。。。</div>';
+		// Show UI
+		showFrame();
+		// Call Worker
 		lines.map(function (line) {
 			var baidu = QUERYBAIDU + line.replace(/ /mg, '%20');
 			var bing = QUERYBING + line.replace(/ /mg, '+');
-			console.log(baidu);
-			console.log(bing);
-			tasks[baidu] = {
+			task[baidu] = {
 				done: false,
-				result: 0
+				result: null
 			};
-			tasks[bing] = {
+			task[bing] = {
 				done: false,
-				result: 0
+				result: null
 			};
 			line = line.split(' ');
 			send('check_url_baidu', {
@@ -104,11 +155,83 @@ function CheckArticle (slug) {
 }
 
 function getCheckResult (slug, url, state, result) {
-	console.log('=============');
-	console.log(slug);
-	console.log(url);
-	console.log(state);
-	console.log(result);
+	var task = tasks[slug][url];
+	task.done = true;
+	task.result = result;
+	// Check State for Errors
+	if (state === 'ParseError') {
+		dealErrorParse(url);
+	}
+	else if (state === 'FetchError') {
+		dealErrorFetch(url);
+	}
+	// Check Tasks
+	if (checkTasks(slug) === 0) {
+		analyzeTasks(slug);
+	}
+}
+
+function checkTasks (slug) {
+	var task_list = tasks[slug];
+	var doing = 0;
+	Object.keys(task_list).map(function (url) {
+		var task = task_list[url];
+		if (!task.done) {
+			doing++;
+		}
+	});
+	return doing;
+}
+
+function analyzeTasks (slug) {
+	var result = [];
+	var task_list = tasks[slug];
+	Object.keys(task_list).map(function (url) {
+		task_list[url].result.map(function (site) {
+			result.push(site);
+		});
+	});
+	result.sort(function (site1, site2) {
+		var result = site2.rank - site1.rank;
+		if (result === 0) result = site1.title.length - site2.title.length;
+		return result;
+	});
+
+	// Append Result
+	var html = '';
+	html = '<div class="crx_action_area"><button class="action_samearticle">自动生成回复</button></div>';
+	html += '<div class="crx_samearticle_mention">下列文章与本文很相似：</div>';
+	articles_mention = '以下文章与您这篇文章非常相似：\n\n';
+	result.map(function (site) {
+		html += '<div class="crx_samearticle_lemma"><a class="crx_samearticle_link" href="' + site.link + '" target="_blank">' + site.title + '</a><span class="crx_samearticle_rate">相似度：' + site.rank + '</span></div>';
+		articles_mention += '《' + site.title + '》（' + site.link + '）\n';
+	});
+	// Set Mention
+	frame_content.innerHTML = html;
+
+	// Show UI
+	showFrame();
+}
+
+function dealErrorTooLittle (wordage, images, videos, content) {
+	// Set Mention
+	frame_content.innerHTML = '<div class="crx_wordage_mention">字数太少！</div><div class="crx_action_area"><button class="action_wordage">自动生成回复</button></div>';
+	// Show UI
+	showFrame();
+}
+function dealErrorParse (url) {
+	console.log('Parse Error: ' + url);
+}
+function dealErrorFetch (url) {
+	console.log('Fetch Error: ' + url);
+}
+
+function showFrame () {
+	frame.classList.remove('hide');
+}
+function hideFrame () {
+	frame_content.innerHTML = '';
+	frame.classList.add('hide');
 }
 
 
@@ -116,6 +239,7 @@ function getCheckResult (slug, url, state, result) {
 
 
 
+// UnUsed
 function show (msg) {
 	openElement(mention);
 	mention.innerHTML = msg;
