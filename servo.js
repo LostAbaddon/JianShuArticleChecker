@@ -30,7 +30,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // Functions
 const RANKLIMIT = 30;
-const RANKGATE = 3;
+const RANKGATE = 4;
 
 function checkBaiduURL (tab, slug, url, keys) {
 	console.log('Call: ' + url);
@@ -52,7 +52,12 @@ function checkBaiduURL (tab, slug, url, keys) {
 			container = container.querySelectorAll('.c-container');
 			var links = [];
 			[].map.call(container, function (elem) {
-				var title = elem.querySelector('h3.t').querySelector('a');
+				var title = elem.querySelector('h3.t');
+				// 百度知道
+				if (!title) {
+					title = elem.querySelector('div.op_best_answer_content');
+				}
+				title = title.querySelector('a');
 				var link = title.href;
 				title = title.innerText;
 				var content = elem.querySelector('.c-abstract'), last;
@@ -65,12 +70,16 @@ function checkBaiduURL (tab, slug, url, keys) {
 				}
 				else {
 					content = elem.querySelector('.c-row');
-					// 百度百科与百度图片
+					// 百度百科、百度图片、百度知道
 					if (content) {
 						content = content.querySelector('p');
 						// 百度图片
 						if (!content) {
-							content = elem.querySelector('.c-row c-span-last')
+							content = elem.querySelector('.c-row .c-span-last')
+							// 百度知道
+							if (!content) {
+								content = elem.querySelector('.c-row .op_best_answer_content');
+							}
 						}
 					}
 					else {
@@ -86,7 +95,8 @@ function checkBaiduURL (tab, slug, url, keys) {
 				}
 				if (content) content = content.innerText;
 				else content = '';
-				var rank = rankPage(content, keys);
+				var power = rankPower(keys);
+				var rank = rankPage(content, keys, power);
 				if (rank > RANKLIMIT) {
 					links.push({
 						title: title,
@@ -137,7 +147,8 @@ function checkBingURL (tab, slug, url, keys) {
 				var content = elem.querySelector('.b_caption');
 				content = content.querySelector('p');
 				content = content.innerText;
-				var rank = rankPage(content, keys);
+				var power = rankPower(keys);
+				var rank = rankPage(content, keys, power);
 				if (rank > RANKLIMIT) {
 					links.push({
 						title: title,
@@ -172,17 +183,26 @@ function convertPageToContent (page) {
 	page = page.replace(/<\/?body[\w\W]*?>/gi, '');
 	return page;
 }
-function rankPage (page, keys) {
-	var total = 0, rank = 0;
+function rankPower (keys) {
+	var total = 0;
 	keys.map(function (line) {
 		var score = line.length;
 		score -= RANKGATE;
 		if (score < 0) score = 0;
 		total += score;
-		if (page.indexOf(line) >= 0) rank += score;
 	});
 	if (total === 0) total = 1;
-	rank /= total;
+	return total;
+}
+function rankPage (page, keys, power) {
+	var rank = 0;
+	keys.map(function (line) {
+		var score = line.length;
+		score -= RANKGATE;
+		if (score < 0) score = 0;
+		if (page.indexOf(line) >= 0) rank += score;
+	});
+	rank /= power;
 	rank *= 100;
 	return rank;
 }
