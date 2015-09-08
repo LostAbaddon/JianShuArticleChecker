@@ -57,6 +57,7 @@ function checkBaiduURL (tab, slug, url, keys) {
 				if (!title) {
 					title = elem.querySelector('div.op_best_answer_content');
 				}
+				if (!title) return;
 				title = title.querySelector('a');
 				var link = title.href;
 				title = title.innerText;
@@ -142,6 +143,7 @@ function checkBingURL (tab, slug, url, keys) {
 			var links = [];
 			[].map.call(container, function (elem) {
 				var title = elem.querySelector('h2').querySelector('a');
+				if (!title) return;
 				var link = title.href;
 				title = title.innerText;
 				var content = elem.querySelector('.b_caption');

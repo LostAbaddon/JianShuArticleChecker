@@ -70,7 +70,9 @@ const TRIM = /^\s+|\s+$/g;
 const SYMBOLS = /[\?,\.;:'"`!=\+\*\\\/_~<>\(\)\[\]\{\}\|@#\$\%\^\&－＋＝—？！／、《》【】｛｝（）×｀～＠＃￥％…＆&｜“”‘’；：，。·〈〉〖〗［］「」『』　]/g;
 
 const LINENUM = 5;
+const LINERATE = 0.16;
 const RNDLINENUM = 3;
+const RNDLINERATE = 0.09;
 const MINLINELEN = 15;
 const MAXLINELEN = 40;
 const WORDAGELIMIT = 500;
@@ -121,11 +123,15 @@ function CheckArticle (slug) {
 		.sort(function (la, lb) {
 			return lb.length - la.length;
 		});
-	var lines = [], len = content.length, index, i;
-	if (len > LINENUM) len = LINENUM;
+	var lines = [], len = content.length, index, i, limit;
+	limit = Math.ceil(len * LINERATE);
+	if (limit < LINENUM) limit = LINENUM;
+	if (len > limit) len = limit;
 	lines = content.splice(0, len);
 	len = content.length;
-	if (len > RNDLINENUM) len = RNDLINENUM;
+	limit = Math.ceil(len * RNDLINERATE);
+	if (limit < RNDLINENUM) limit = RNDLINENUM;
+	if (len > limit) len = limit;
 	for (i = 0; i < len; i++) {
 		index = Math.floor(Math.random() * content.length);
 		lines.push(content.splice(index, 1)[0]);
@@ -251,9 +257,16 @@ function analyzeTasks (slug) {
 			result.push(site);
 		});
 	});
+	// 整理结果
 	result.sort(function (site1, site2) {
-		var result = site2.rank - site1.rank;
-		if (result === 0) result = site1.title.length - site2.title.length;
+		var result = 0;
+		if (site2.title > site1.title) result = 1;
+		else if (site2.title < site1.title) result = -1;
+		if (result === 0) {
+			if (site2.line > site1.line) result = 1;
+			else if (site2.line < site1.line) result = -1;
+		}
+		if (result === 0) result = site2.rank - site1.rank;
 		return result;
 	});
 
@@ -278,6 +291,7 @@ function analyzeTasks (slug) {
 		html += '<div class="crx_samearticle_mention">下列文章与本文很相似：</div>';
 		articles_mention = '以下文章与您这篇文章非常相似：\n\n';
 		result.map(function (site) {
+			console.log(site.title, Math.round(site.rank), site.link, site.line);
 			html += '<div class="crx_samearticle_lemma"><a class="crx_samearticle_link" href="' + site.link + '" target="_blank">' + site.title + '</a><span class="crx_samearticle_rate">局部相似度：' + (Math.round(site.rank * 100) / 100) + '％</span><span class="crx_samearticle_rate"><a href="' + site.search_url + '" target="_blank">查看搜索页</a></span></div>';
 			articles_mention += '《' + site.title + '》（' + site.link + '）\n';
 		});
