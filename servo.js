@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 // Functions
-const RANKLIMIT = 30;
+const RANKLIMIT = 40;
 const RANKGATE = 4;
 
 function checkBaiduURL (tab, slug, url, keys) {

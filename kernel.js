@@ -63,6 +63,20 @@ document.addEventListener('DOMContentLoaded', function () {
 	body.addEventListener('click', function () {
 		hideFrame();
 	});
+	// 快捷键
+	body.addEventListener('keyup', function (e) {
+		if (e.altKey && e.which === 83) {
+			var url = location.href;
+			url = url.match(URL_CHECKER);
+			if (!!url) {
+				url = url[1];
+				CheckArticle(url);
+			}
+			e.stopPropagation();
+			e.preventDefault();
+			e.cancelBubble = true;
+		}
+	})
 });
 
 // Functons
@@ -81,12 +95,12 @@ const POWERPOWER = 3;
 const RANKPOWER = 5;
 const CLASSRANKLIMIT = 1;
 const CLASSRANKGATE = 0.15;
-const CLASSREDSHIFTPOWER = 4;
-const CLASSBLUESHIFTPOWER = 2;
+const CLASSREDSHIFTPOWER = 2.5;
+const CLASSBLUESHIFTPOWER = 1.5;
 
 const USEBAIDU = true;
 const QUERYBAIDU = 'https://www.baidu.com/s?wd=';
-const USEBING = true;
+const USEBING = false;
 const QUERYBING = 'http://cn.bing.com/search?q=';
 
 var tasks = {};
