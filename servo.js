@@ -102,6 +102,7 @@ function checkBaiduURL (tab, slug, url, keys) {
 				if (rank > RANKLIMIT) {
 					if (USE_REAL_URL) {
 						real_url_tasks ++;
+						console.log('Seek >>>> ' + link);
 						ajax(link, {
 							success: function (text, xhr) {
 								var real_url = xhr.responseURL;
