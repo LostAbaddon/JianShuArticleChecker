@@ -31,6 +31,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 // Functions
 const RANKLIMIT = 40;
 const RANKGATE = 4;
+const USE_REAL_URL = true;
 
 function checkBaiduURL (tab, slug, url, keys) {
 	console.log('Call: ' + url);
@@ -50,7 +51,7 @@ function checkBaiduURL (tab, slug, url, keys) {
 				return;
 			}
 			container = container.querySelectorAll('.c-container');
-			var links = [];
+			var links = [], real_url_tasks = 0;
 			[].map.call(container, function (elem) {
 				var title = elem.querySelector('h3.t');
 				// 百度知道
@@ -99,19 +100,67 @@ function checkBaiduURL (tab, slug, url, keys) {
 				var power = rankPower(keys);
 				var rank = rankPage(content, keys, power);
 				if (rank > RANKLIMIT) {
-					links.push({
-						title: title,
-						link: link,
-						rank: rank
-					});
+					if (USE_REAL_URL) {
+						real_url_tasks ++;
+						ajax(link, {
+							success: function (text, xhr) {
+								var real_url = xhr.responseURL;
+								if (real_url !== link) {
+									link = real_url;
+								}
+								else {
+									real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									if (real_url) {
+										real_url = real_url[2];
+										link = real_url;
+									}
+								}
+							},
+							always: function () {
+								links.push({
+									title: title,
+									link: link,
+									rank: rank
+								});
+								real_url_tasks --;
+								if (real_url_tasks === 0) {
+									send(tab, 'BaiduResult', {
+										state: 'OK',
+										result: links,
+										slug: slug,
+										url: url
+									});
+								}
+							}
+						});
+					}
+					else {
+						links.push({
+							title: title,
+							link: link,
+							rank: rank
+						});
+					}
 				}
 			});
-			send(tab, 'BaiduResult', {
-				state: 'OK',
-				result: links,
-				slug: slug,
-				url: url
-			});
+			if (USE_REAL_URL) {
+				if (real_url_tasks === 0) {
+					send(tab, 'BaiduResult', {
+						state: 'OK',
+						result: links,
+						slug: slug,
+						url: url
+					});
+				}
+			}
+			else {
+				send(tab, 'BaiduResult', {
+					state: 'OK',
+					result: links,
+					slug: slug,
+					url: url
+				});
+			}
 		},
 		fail: function () {
 			send(tab, 'BaiduResult', {
