@@ -84,7 +84,7 @@ const LINENUM = 5;
 const LINERATE = 0.16;
 const RNDLINENUM = 3;
 const RNDLINERATE = 0.09;
-const MINLINELEN = 15;
+const MINLINELEN = 10;
 const MAXLINELEN = 40;
 const WORDAGELIMIT = 500;
 
@@ -128,7 +128,7 @@ function CheckArticle (slug) {
 			return line.replace(SYMBOLS, ' ').replace(/[a-zA-Z\d]+/g, ' ').replace(/\s+/g, ' ').replace(TRIM, '');
 		})
 		.filter(function (line) {
-			var len = line.length;
+			var len = line.replace(/ +/g, '').length;
 			return (len >= MINLINELEN) && (len <= MAXLINELEN); // 百度搜索字段最长不得超过40字符
 		})
 		.sort(function (la, lb) {
