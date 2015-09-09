@@ -52,9 +52,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			comment.textContent = '抱歉，请问您是这篇文章的原作者么？\n因为在网上发现' + articles_mention + '\n所以想询问一下是否是原作者，避免错误处理。\n谢谢！';
 			comment.focus
 		}
-		else {
-			console.log(e);
-		}
 		// 避免事件冒泡
 		e.stopPropagation();
 		e.cancelBubble = true;
