@@ -52,7 +52,7 @@ var ajax = function (url, callbacks) {
 
 const INLINE_TAGS = ['a', 'abbr', 'address', 'area', 'audio', 'cite', 'code', 'del', 'details', 'dfn', 'command', 'button', 'datalist', 'em', 'font', 'i', 'img', 'input', 'ins', 'kbd', 'label', 'legend', 'link', 'mark', 'meter', 'nav', 'optgroup', 'q', 'small', 'big', 'select', 'source', 'span', 'strong', 'b', 'sub', 'sup', 'summary', 'time', 'var', 'strike'];
 const SEPARATE_TAGS = ['br', 'hr'];
-const URL_CHECKER = /(?:www\.)?jianshu\.(?:com|io)\/p\/(\w+)/i;
+const URL_CHECKER = /(?:www\.)?jianshu\.(?:com|io)\/p\/(\w+)($|\/|\?|#)/i;
 
 function getContentList (container) {
 	var result = [], children = container.childNodes, t = children.length, i, node, tag, text = '', j, k, bra, ket;

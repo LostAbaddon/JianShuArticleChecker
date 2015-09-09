@@ -117,11 +117,15 @@ function checkBaiduURL (tab, slug, url, keys) {
 								}
 							},
 							always: function () {
-								links.push({
-									title: title,
-									link: link,
-									rank: rank
-								});
+								// 如果是简书上同一篇文章，则不记录在内
+								var jianshu_check = link.match(URL_CHECKER);
+								if (!jianshu_check || (jianshu_check[1] !== slug)) {
+									links.push({
+										title: title,
+										link: link,
+										rank: rank
+									});
+								}
 								real_url_tasks --;
 								if (real_url_tasks === 0) {
 									send(tab, 'BaiduResult', {
@@ -194,6 +198,9 @@ function checkBingURL (tab, slug, url, keys) {
 				var title = elem.querySelector('h2').querySelector('a');
 				if (!title) return;
 				var link = title.href;
+				// 如果是简书上同一篇文章，则不记录在内
+				var jianshu_check = link.match(URL_CHECKER);
+				if (jianshu_check && (jianshu_check[1] === slug)) return;
 				title = title.innerText;
 				var content = elem.querySelector('.b_caption');
 				content = content.querySelector('p');
