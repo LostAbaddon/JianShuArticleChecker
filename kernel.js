@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	});
 	// 快捷键
 	body.addEventListener('keyup', function (e) {
-		if (e.altKey && e.which === 83) {
+		if ((e.altKey || e.ctrlKey || e.metaKey) && e.which === 83) {
 			var url = location.href;
 			url = url.match(URL_CHECKER);
 			if (!!url) {
@@ -230,18 +230,23 @@ function checkTasks (slug) {
 
 function analyzeTasks (slug) {
 	var result = [];
-	var task_list = tasks[slug];
+	var task_list = tasks[slug], task_keys = Object.keys(task_list);
 	var html = '', total = 0, rank = 0, class_rank = 0, class_total = 0, rank_shift = 1, class_shift_red = true;
 
-	Object.keys(task_list).map(function (url) {
-		var task = task_list[url];
-		total += Math.pow(task.power, POWERPOWER);
-		class_total ++;
-		if (task.result.length > CLASSRANKLIMIT) {
-			class_rank ++;
-		}
+	// 计算额外权重
+	task_keys.map(function (url) {
+		var task = task_list[url], max = 0;
+		total += Math.pow(task.power, POWERPOWER); // 计算总长度权重
+		class_total ++; // 总额外权重
+		task.result.map(function (site) {
+			if (site.rank > max) max = site.rank;
+		});
+		class_rank += max / 100;
 	});
+	// 计算额外权重分界阀值
 	rank_shift = class_total * CLASSRANKGATE;
+	if (rank_shift < 1) rank_shift = 1;
+	// 计算额外权重
 	if (class_rank < rank_shift) {
 		class_shift_red = true;
 		rank_shift = class_rank / rank_shift;
@@ -252,11 +257,13 @@ function analyzeTasks (slug) {
 		rank_shift = (class_total - class_rank) / (class_total - rank_shift);
 		rank_shift = Math.pow(rank_shift, CLASSBLUESHIFTPOWER);
 	}
-	Object.keys(task_list).map(function (url) {
+	// 计算长度权重
+	task_keys.map(function (url) {
 		var task = task_list[url];
 		task.power = Math.pow(task.power, POWERPOWER) / total;
 	});
-	Object.keys(task_list).map(function (url) {
+	// 计算每篇文章的权重
+	task_keys.map(function (url) {
 		var task = task_list[url];
 		var search_url = task.url;
 		var power = task.power;
