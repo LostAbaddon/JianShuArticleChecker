@@ -39,10 +39,10 @@ var ajax = function (url, callbacks) {
 		callbacks = callbacks || {};
 		xhr.onreadystatechange = function () {
 			if (xhr.readyState === 4) {
-				if (callbacks.ready) callbacks.ready();
-				if (xhr.status === 200 && callbacks.success) callbacks.success(xhr.responseText);
-				if (xhr.status !== 200 && callbacks.fail) callbacks.fail(xhr.status);
-				if (callbacks.always) callbacks.always();
+				if (callbacks.ready) callbacks.ready(xhr);
+				if (xhr.status === 200 && callbacks.success) callbacks.success(xhr.responseText, xhr);
+				if (xhr.status !== 200 && callbacks.fail) callbacks.fail(xhr.status, xhr);
+				if (callbacks.always) callbacks.always(xhr);
 			}
 		};
 		xhr.open('GET', url, true);
