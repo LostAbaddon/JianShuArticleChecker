@@ -29,6 +29,22 @@
 
 	overflow-y: scroll;
 }
+.crx_content::-webkit-scrollbar,
+.crx_content::-webkit-scrollbar-track,
+.crx_content::-webkit-scrollbar-corner {
+	background: transparent;
+}
+.crx_content::-webkit-scrollbar {
+	width: 10px;
+}
+.crx_content::-webkit-scrollbar-track {
+	border-radius: 5px;
+}
+.crx_content::-webkit-scrollbar-thumb {
+	background: rgb(53, 53, 53);
+	box-shadow: inset 1px 1px 1px rgb(127, 127, 127), inset -1px -1px 1px rgb(27, 27, 27);
+	border-radius: 5px;
+}
 .crx_wordage_mention {
 	display: block;
 	margin-bottom: 20px;
