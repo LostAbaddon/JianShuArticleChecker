@@ -90,7 +90,6 @@ const WORDAGELIMIT = 500;
 
 const POWERPOWER = 3;
 const RANKPOWER = 5;
-const CLASSRANKLIMIT = 1;
 const CLASSRANKGATE = 0.15;
 const CLASSREDSHIFTPOWER = 2.5;
 const CLASSBLUESHIFTPOWER = 1.5;
@@ -157,13 +156,13 @@ function CheckArticle (slug) {
 		showFrame();
 		// Call Worker
 		lines.map(function (line) {
-			var baidu, bing;
+			var baidu, bing, power = line.replace(/ +/g, '').length;
 			if (USEBAIDU) {
 				baidu = QUERYBAIDU + line.replace(/ /mg, '%20');
 				task[baidu] = {
 					done: false,
 					result: null,
-					power: line.length,
+					power: power,
 					line: line,
 				};
 			}
@@ -172,7 +171,7 @@ function CheckArticle (slug) {
 				task[bing] = {
 					done: false,
 					result: null,
-					power: line.length,
+					power: power,
 					line: line,
 				};
 			}
