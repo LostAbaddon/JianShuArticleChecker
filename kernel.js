@@ -18,6 +18,9 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 		case "BingResult":
 			getCheckResult(msg.slug, msg.url, msg.state, msg.result);
 		break;
+		case "SogouResult":
+			getCheckResult(msg.slug, msg.url, msg.state, msg.result);
+		break;
 		// default:
 		// 	console.log("Get Request:");
 		// 	console.log(request);
@@ -73,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			e.preventDefault();
 			e.cancelBubble = true;
 		}
-	})
+	});
 });
 
 // Functons
@@ -94,10 +97,14 @@ const CLASSRANKGATE = 0.15;
 const CLASSREDSHIFTPOWER = 2.5;
 const CLASSBLUESHIFTPOWER = 1.5;
 
-const USEBAIDU = true;
+const USEBAIDU = false;
 const QUERYBAIDU = 'https://www.baidu.com/s?wd=';
 const USEBING = false;
 const QUERYBING = 'http://cn.bing.com/search?q=';
+const USESOGOU = false;
+const QUERYSOGOU = 'https://www.sogou.com/web?query=';
+const USESGWEIXIN = true;
+const QUERYSGWEIXIN = 'http://weixin.sogou.com/weixin?type=2&query=';
 
 var tasks = {};
 
@@ -156,36 +163,63 @@ function CheckArticle (slug) {
 		showFrame();
 		// Call Worker
 		lines.map(function (line) {
-			var baidu, bing, power = line.replace(/ +/g, '').length;
+			var url, power = line.replace(/ +/g, '').length, array = line.split(' ');
 			if (USEBAIDU) {
-				baidu = QUERYBAIDU + line.replace(/ /mg, '%20');
-				task[baidu] = {
+				url = QUERYBAIDU + line.replace(/ /mg, '%20');
+				task[url] = {
 					done: false,
 					result: null,
 					power: power,
 					line: line,
 				};
+				send('check_url_baidu', {
+					slug: slug,
+					url: url,
+					keys: array
+				});
 			}
 			if (USEBING) {
-				bing = QUERYBING + line.replace(/ /mg, '+');
-				task[bing] = {
+				url = QUERYBING + line.replace(/ /mg, '+');
+				task[url] = {
 					done: false,
 					result: null,
 					power: power,
 					line: line,
 				};
+				send('check_url_bing', {
+					slug: slug,
+					url: url,
+					keys: array
+				});
 			}
-			line = line.split(' ');
-			if (USEBAIDU) send('check_url_baidu', {
-				slug: slug,
-				url: baidu,
-				keys: line
-			});
-			if (USEBING) send('check_url_bing', {
-				slug: slug,
-				url: bing,
-				keys: line
-			});
+			if (USESOGOU) {
+				url = QUERYSOGOU + line.replace(/ /mg, '+');
+				task[url] = {
+					done: false,
+					result: null,
+					power: power,
+					line: line,
+				};
+				send('check_url_sogou', {
+					slug: slug,
+					url: url,
+					keys: array
+				});
+			}
+			if (USESGWEIXIN) {
+				url = QUERYSGWEIXIN + line.replace(/ /mg, '+');
+				task[url] = {
+					done: false,
+					result: null,
+					power: power,
+					line: line,
+				};
+				send('check_url_sgweixin', {
+					slug: slug,
+					url: url,
+					keys: array
+				});
+			}
 		});
 	}
 }

@@ -17,6 +17,12 @@ function requestHandler (request, sender, callback) {
 		case "check_url_bing":
 			checkBingURL(request.__id, data.slug, data.url, data.keys);
 		break;
+		case "check_url_sogou":
+			checkSogouURL(request.__id, data.slug, data.url, data.keys);
+		break;
+		case "check_url_sgweixin":
+			checkSGWeixinURL(request.__id, data.slug, data.url, data.keys);
+		break;
 		// default:
 		// 	console.log('Get Request:');
 		// 	console.log(request);
@@ -148,17 +154,7 @@ function checkBaiduURL (tab, slug, url, keys) {
 					}
 				}
 			});
-			if (USE_REAL_URL) {
-				if (real_url_tasks === 0) {
-					send(tab, 'BaiduResult', {
-						state: 'OK',
-						result: links,
-						slug: slug,
-						url: url
-					});
-				}
-			}
-			else {
+			if (real_url_tasks === 0) {
 				send(tab, 'BaiduResult', {
 					state: 'OK',
 					result: links,
@@ -225,6 +221,202 @@ function checkBingURL (tab, slug, url, keys) {
 		},
 		fail: function () {
 			send(tab, 'BingResult', {
+				state: 'FetchError',
+				slug: slug,
+				url: url
+			});
+		}
+	});
+}
+function checkSogouURL (tab, slug, url, keys) {
+	console.log('Call: ' + url);
+	ajax(url, {
+		success: function (text) {
+			console.log('Fetch:: ' + url);
+			text = convertPageToContent(text);
+			var container = document.createElement('div');
+			container.innerHTML = text;
+			container = container.querySelectorAll('div.results>div');
+			if (!container || container.length === 0) {
+				send(tab, 'SogouResult', {
+					state: 'ParseError',
+					slug: slug,
+					url: url
+				});
+				return;
+			}
+			var links = [], real_url_tasks = 0;
+			[].map.call(container, function (elem) {
+				var title = elem.querySelector('h3>a');
+				if (!title) return;
+				var link = title.href;
+				// 如果是简书上同一篇文章，则不记录在内
+				var jianshu_check = link.match(URL_CHECKER);
+				if (jianshu_check && (jianshu_check[1] === slug)) return;
+				title = title.innerText;
+				var content = elem.querySelector('div.fb');
+				content = content.previousElementSibling;
+				content = content.innerText;
+				var power = rankPower(keys);
+				var rank = rankPage(content, keys, power);
+				if (rank > RANKLIMIT) {
+					if (USE_REAL_URL) {
+						real_url_tasks ++;
+						console.log('Seek >>>> ' + link);
+						ajax(link, {
+							success: function (text, xhr) {
+								var real_url = xhr.responseURL;
+								if (real_url !== link) {
+									link = real_url;
+								}
+								else {
+									real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									if (real_url) {
+										real_url = real_url[2];
+										link = real_url;
+									}
+								}
+							},
+							always: function () {
+								// 如果是简书上同一篇文章，则不记录在内
+								var jianshu_check = link.match(URL_CHECKER);
+								if (!jianshu_check || (jianshu_check[1] !== slug)) {
+									links.push({
+										title: title,
+										link: link,
+										rank: rank
+									});
+								}
+								real_url_tasks --;
+								if (real_url_tasks === 0) {
+									send(tab, 'SogouResult', {
+										state: 'OK',
+										result: links,
+										slug: slug,
+										url: url
+									});
+								}
+							}
+						});
+					}
+					else {
+						links.push({
+							title: title,
+							link: link,
+							rank: rank
+						});
+					}
+				}
+			});
+			if (real_url_tasks === 0) {
+				send(tab, 'SogouResult', {
+					state: 'OK',
+					result: links,
+					slug: slug,
+					url: url
+				});
+			}
+		},
+		fail: function () {
+			send(tab, 'SogouResult', {
+				state: 'FetchError',
+				slug: slug,
+				url: url
+			});
+		}
+	});
+}
+function checkSGWeixinURL (tab, slug, url, keys) {
+	console.log('Call: ' + url);
+	ajax(url, {
+		success: function (text) {
+			console.log('Fetch:: ' + url);
+			text = convertPageToContent(text);
+			var container = document.createElement('div');
+			container.innerHTML = text;
+			container = container.querySelectorAll('div.results>div.wx-rb');
+			if (!container || container.length === 0) {
+				send(tab, 'SogouResult', {
+					state: 'ParseError',
+					slug: slug,
+					url: url
+				});
+				return;
+			}
+			var links = [], real_url_tasks = 0;
+			[].map.call(container, function (elem) {
+				var title = elem.querySelector('h4>a');
+				if (!title) return;
+				var link = 'http://weixin.sogou.com' + title.getAttribute('href');
+				// 如果是简书上同一篇文章，则不记录在内
+				var jianshu_check = link.match(URL_CHECKER);
+				if (jianshu_check && (jianshu_check[1] === slug)) return;
+				title = title.innerText;
+				var content = elem.querySelector('h4');
+				content = content.nextElementSibling;
+				content = content.innerText;
+				var power = rankPower(keys);
+				var rank = rankPage(content, keys, power);
+				if (rank > RANKLIMIT) {
+					if (USE_REAL_URL) {
+						real_url_tasks ++;
+						console.log('Seek >>>> ' + link);
+						ajax(link, {
+							success: function (text, xhr) {
+								var real_url = xhr.responseURL;
+								if (real_url !== link) {
+									link = real_url;
+								}
+								else {
+									real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									if (real_url) {
+										real_url = real_url[2];
+										link = real_url;
+									}
+								}
+							},
+							always: function () {
+								// 如果是简书上同一篇文章，则不记录在内
+								var jianshu_check = link.match(URL_CHECKER);
+								if (!jianshu_check || (jianshu_check[1] !== slug)) {
+									links.push({
+										title: title,
+										link: link,
+										rank: rank
+									});
+								}
+								real_url_tasks --;
+								if (real_url_tasks === 0) {
+									send(tab, 'SogouResult', {
+										state: 'OK',
+										result: links,
+										slug: slug,
+										url: url
+									});
+								}
+							}
+						});
+					}
+					else {
+						links.push({
+							title: title,
+							link: link,
+							rank: rank
+						});
+					}
+				}
+			});
+			if (real_url_tasks === 0) {
+				send(tab, 'SogouResult', {
+					state: 'OK',
+					result: links,
+					slug: slug,
+					url: url
+				});
+			}
+		},
+		fail: function () {
+			send(tab, 'SogouResult', {
 				state: 'FetchError',
 				slug: slug,
 				url: url
