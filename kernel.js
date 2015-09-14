@@ -407,8 +407,9 @@ function analyzeTasks (slug) {
 	});
 
 	// 生成结果
+	var html = '';
 	if (keyword_match === 0 && page_match === 0) {
-		html += '<div class="crx_samearticle_mention">目前网上没有文章与这篇文章相似！</div>';
+		html = '<div class="crx_samearticle_mention">目前网上没有文章与这篇文章相似！</div>';
 	}
 	else {
 		html = '<div class="crx_action_area"><button class="action_samearticle">自动生成回复</button></div>';
