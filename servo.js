@@ -234,10 +234,16 @@ function checkSogouURL (tab, slug, url, keys) {
 		success: function (text) {
 			console.log('Fetch:: ' + url);
 			text = convertPageToContent(text);
-			var container = document.createElement('div');
-			container.innerHTML = text;
-			container = container.querySelectorAll('div.results>div');
-			if (!container || container.length === 0) {
+			var container = document.createElement('div'), error = false;
+			try {
+				container.innerHTML = text;
+				container = container.querySelectorAll('div.results>div');
+				if (!container || container.length === 0) error = true;
+			}
+			catch (err) {
+				error = true;
+			}
+			if (error) {
 				send(tab, 'SogouResult', {
 					state: 'ParseError',
 					slug: slug,
@@ -247,13 +253,17 @@ function checkSogouURL (tab, slug, url, keys) {
 			}
 			var links = [], real_url_tasks = 0;
 			[].map.call(container, function (elem) {
-				var title = elem.querySelector('h3>a');
-				if (!title) return;
-				var link = title.href;
-				// 如果是简书上同一篇文章，则不记录在内
-				var jianshu_check = link.match(URL_CHECKER);
-				if (jianshu_check && (jianshu_check[1] === slug)) return;
-				title = title.innerText;
+				var title, link, error = false;
+				try {
+					title = elem.querySelector('h3>a');
+					if (!title) error = true;
+					link = title.href;
+					title = title.innerText;
+				}
+				catch (err) {
+					error = true;
+				}
+				if (error) return;
 				var content = elem.querySelector('div.fb');
 				content = content.previousElementSibling;
 				content = content.innerText;
@@ -265,12 +275,25 @@ function checkSogouURL (tab, slug, url, keys) {
 						console.log('Seek >>>> ' + link);
 						ajax(link, {
 							success: function (text, xhr) {
-								var real_url = xhr.responseURL;
+								var real_url, error = false;
+								try {
+									real_url = xhr.responseURL;
+								}
+								catch (err) {
+									error = true;
+								}
+								if (error) return;
 								if (real_url !== link) {
 									link = real_url;
 								}
 								else {
-									real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									try {
+										real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									}
+									catch (err) {
+										error = true;
+									}
+									if (error) return;
 									if (real_url) {
 										real_url = real_url[2];
 										link = real_url;
@@ -332,10 +355,16 @@ function checkSGWeixinURL (tab, slug, url, keys) {
 		success: function (text) {
 			console.log('Fetch:: ' + url);
 			text = convertPageToContent(text);
-			var container = document.createElement('div');
-			container.innerHTML = text;
-			container = container.querySelectorAll('div.results>div.wx-rb');
-			if (!container || container.length === 0) {
+			var container = document.createElement('div'), error = false;
+			try {
+				container.innerHTML = text;
+				container = container.querySelectorAll('div.results>div.wx-rb');
+				if (!container || container.length === 0) error = true;
+			}
+			catch (err) {
+				error = true;
+			}
+			if (error) {
 				send(tab, 'SogouResult', {
 					state: 'ParseError',
 					slug: slug,
@@ -345,13 +374,19 @@ function checkSGWeixinURL (tab, slug, url, keys) {
 			}
 			var links = [], real_url_tasks = 0;
 			[].map.call(container, function (elem) {
-				var title = elem.querySelector('h4>a');
-				if (!title) return;
-				var link = 'http://weixin.sogou.com' + title.getAttribute('href');
-				// 如果是简书上同一篇文章，则不记录在内
-				var jianshu_check = link.match(URL_CHECKER);
-				if (jianshu_check && (jianshu_check[1] === slug)) return;
-				title = title.innerText;
+				var title, link, error = false;
+				try {
+					title = elem.querySelector('h4>a');
+					if (!title) error = true;
+					if (!error) {
+						link = 'http://weixin.sogou.com' + title.getAttribute('href');
+						title = title.innerText;
+					}
+				}
+				catch (err) {
+					error = true;
+				}
+				if (error) return;
 				var content = elem.querySelector('h4');
 				content = content.nextElementSibling;
 				content = content.innerText;
@@ -363,12 +398,25 @@ function checkSGWeixinURL (tab, slug, url, keys) {
 						console.log('Seek >>>> ' + link);
 						ajax(link, {
 							success: function (text, xhr) {
-								var real_url = xhr.responseURL;
+								var real_url, error = false;
+								try {
+									real_url = xhr.responseURL;
+								}
+								catch (err) {
+									error = true;
+								}
+								if (error) return;
 								if (real_url !== link) {
 									link = real_url;
 								}
 								else {
-									real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									try {
+										real_url = text.match(/window\.location\.replace\(('|")([\w\W]+)\1\)/);
+									}
+									catch (err) {
+										error = true;
+									}
+									if (error) return;
 									if (real_url) {
 										real_url = real_url[2];
 										link = real_url;

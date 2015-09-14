@@ -97,13 +97,13 @@ const CLASSRANKGATE = 0.15;
 const CLASSREDSHIFTPOWER = 2.5;
 const CLASSBLUESHIFTPOWER = 1.5;
 
-const USEBAIDU = false;
+const USEBAIDU = true;
 const QUERYBAIDU = 'https://www.baidu.com/s?wd=';
 const USEBING = false;
 const QUERYBING = 'http://cn.bing.com/search?q=';
 const USESOGOU = false;
 const QUERYSOGOU = 'https://www.sogou.com/web?query=';
-const USESGWEIXIN = true;
+const USESGWEIXIN = false;
 const QUERYSGWEIXIN = 'http://weixin.sogou.com/weixin?type=2&query=';
 
 var tasks = {};
