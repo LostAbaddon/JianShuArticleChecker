@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Functons
 const TRIM = /^\s+|\s+$/g;
-const SYMBOLS = /[\?,\.;:'"`!=\+\*\\\/_~<>\(\)\[\]\{\}\|@#\$\%\^\&－＋＝—？！／、《》【】｛｝（）×｀～＠＃￥％…＆&｜“”‘’；：，。·〈〉〖〗［］「」『』　]/g;
+const SYMBOLS = /[\?,\.;:'"`!=\+\*\\\/_~<>\(\)\[\]\{\}\|@#\$\%\^\&\-＋＝－？！／、《》【】｛｝（）×｀～＠＃￥％…＆&｜“”‘’；：，。·〈〉〖〗［］「」『』　]/g;
 
 const LINENUM = 5;
 const LINERATE = 0.16;
@@ -96,6 +96,9 @@ const RANKPOWER = 5;
 const CLASSRANKGATE = 0.15;
 const CLASSREDSHIFTPOWER = 2.5;
 const CLASSBLUESHIFTPOWER = 1.5;
+const KEYWORDRANKAMPLIFIER = 5;
+const WILSONLIMIT = 0;
+const PAGERANGELIMIT = 0.1;
 
 const USEBAIDU = true;
 const QUERYBAIDU = 'https://www.baidu.com/s?wd=';
@@ -261,98 +264,183 @@ function checkTasks (slug) {
 	return doing;
 }
 
+// 计算Wilson权重
+function getWilsonIndex (total, number) {
+	if (total < 1) total = 1;
+	if (number < 0) return 0;
+	if (number > total) number = total;
+	var rate = number / total;
+	var inverse = 1 / total;
+	var result = rate + 2 / 3 * (1 - 2 * rate) * inverse - Math.sqrt(2 * rate * (1 - rate) * inverse);
+	if (result > rate) result = rate;
+	if (result < WILSONLIMIT) result = WILSONLIMIT;
+	return result;
+}
+
+// 筛选出最相似的文章和最常见的句子
 function analyzeTasks (slug) {
-	var result = [];
-	var task_list = tasks[slug], task_keys = Object.keys(task_list);
-	var html = '', total = 0, rank = 0, class_rank = 0, class_total = 0, rank_shift = 1, class_shift_red = true;
+	var lists = tasks[slug], querys = Object.keys(lists);
+	var keyword_list = {}, page_list = {};
 
-	// 计算额外权重
-	task_keys.map(function (url) {
-		var task = task_list[url], max = 0;
-		total += Math.pow(task.power, POWERPOWER); // 计算总长度权重
-		class_total ++; // 总额外权重
-		task.result.map(function (site) {
-			if (site.rank > max) max = site.rank;
-		});
-		class_rank += max / 100;
-	});
-	// 计算额外权重分界阀值
-	rank_shift = class_total * CLASSRANKGATE;
-	if (rank_shift < 1) rank_shift = 1;
-	// 计算额外权重
-	if (class_rank < rank_shift) {
-		class_shift_red = true;
-		rank_shift = class_rank / rank_shift;
-		rank_shift = Math.pow(rank_shift, CLASSREDSHIFTPOWER);
-	}
-	else {
-		class_shift_red = false;
-		rank_shift = (class_total - class_rank) / (class_total - rank_shift);
-		rank_shift = Math.pow(rank_shift, CLASSBLUESHIFTPOWER);
-	}
-	// 计算长度权重
-	task_keys.map(function (url) {
-		var task = task_list[url];
-		task.power = Math.pow(task.power, POWERPOWER) / total;
-	});
-	// 计算每篇文章的权重
-	task_keys.map(function (url) {
-		var task = task_list[url];
-		var search_url = task.url;
-		var power = task.power;
+	// 对相同页面的相同结果的规整
+	// keyword_list 主关键字为查询内容，pages关键字为页面地址
+	// page_list 主关键字为页面地址，rank关键字为查询内容
+	querys.map(function (url) {
+		var task = lists[url];
 		var line = task.line;
-		task.result.map(function (site) {
-			site.search_url = search_url;
-			site.power = power;
-			site.line = line;
-			result.push(site);
+		keyword_list[line] = keyword_list[line] || {
+			line: line,
+			power: task.power,
+			querys: [],
+			pages: []
+		};
+		var kw_info = keyword_list[line];
+		var url = task.url;
+		if (!url) return;
+		if ((kw_info.querys.indexOf(url) < 0) && (task.result.length > 0)) kw_info.querys.push(url);
+		task.result.map(function (page) {
+			var link = page.link, pg = page_list[link], info;
+			if (pg) {
+				if (!!pg.rank[line]) {
+					if (pg.rank[line] < page.rank) pg.rank[line] = page.rank;
+				}
+				else {
+					pg.rank[line] = page.rank;
+				}
+			}
+			else {
+				info = {
+					url: link,
+					title: page.title,
+					rank: {},
+				};
+				info.rank[line] = page.rank;
+				page_list[link] = info;
+			}
+			if (kw_info.pages.indexOf(link) < 0) kw_info.pages.push(link);
 		});
 	});
-	// 整理结果
-	result.sort(function (site1, site2) {
-		var result = 0;
-		if (site2.title > site1.title) result = 1;
-		else if (site2.title < site1.title) result = -1;
-		if (result === 0) {
-			if (site2.line > site1.line) result = 1;
-			else if (site2.line < site1.line) result = -1;
+	lists = null;
+
+	// 计算长度权重
+	var total_power = 0;
+	querys = Object.keys(keyword_list);
+	querys.map(function (keywords) {
+		var task = keyword_list[keywords];
+		task.power = Math.pow(task.power, POWERPOWER); // 计算长度权重
+		total_power += task.power; // 计算总长度权重
+		// 计算文章符合度
+		var total = 0, index = 0;
+		task.pages.map(function (page) {
+			var page = page_list[page];
+			total ++;
+			index += page.rank[task.line] / 100;
+		});
+		task.match = getWilsonIndex(total * KEYWORDRANKAMPLIFIER, index * KEYWORDRANKAMPLIFIER);
+	});
+	querys.map(function (keywords) {
+		var task = keyword_list[keywords];
+		task.power /= total_power; // 归一化长度权重
+	});
+	// 过滤不匹配的关键字
+	querys.map(function (keywords) {
+		var task = keyword_list[keywords];
+		if (task.pages.length === 0) {
+			delete keyword_list[keywords];
 		}
-		if (result === 0) result = site2.rank - site1.rank;
-		return result;
+	});
+	querys = Object.keys(keyword_list);
+	// 计算总体符合度
+	var keyword_match = 1;
+	total_power = 0;
+	querys.map(function (keywords) {
+		var task = keyword_list[keywords];
+		total_power += task.power;
+		keyword_match *= Math.pow(1 - task.match, task.power);
+	});
+	keyword_match = Math.pow(keyword_match, 1 / total_power) || 1;
+	keyword_match = 1 - keyword_match;
+
+	// 结果排序
+	lists = querys.map(function (line) {
+		return keyword_list[line];
+	});
+	lists.sort(function (kw1, kw2) {
+		return kw2.match - kw1.match;
 	});
 
-	// Append Result
-	if (result.length > 0) {
-		rank = 0;
-		total = 1 / result.length;
-		result.map(function (site) {
-			rank += Math.pow(site.rank, RANKPOWER) * site.power * total;
+	// 分析单个页面与当前文章的匹配度
+	var page_match = 1;
+	total_power = 0;
+	querys = Object.keys(page_list);
+	querys.map(function (url) {
+		var page = page_list[url], total = 0, index = 0;
+		var ranks = Object.keys(page.rank);
+		ranks.map(function (line) {
+			var kw = keyword_list[line];
+			total += kw.power;
+			index += page.rank[line] * kw.power / 100;
 		});
-		rank = Math.pow(rank, 1 / RANKPOWER);
-		if (class_shift_red) {
-			rank *= rank_shift;
+		index = index / total;
+		total = ranks.length;
+		page.match = getWilsonIndex(total, index * total);
+		total_power += page.match;
+		page_match *= Math.pow(1 - page.match, page.match);
+	});
+	page_match = Math.pow(page_match, 1 / total_power) || 1;
+	page_match = 1 - page_match;
+	// 过滤不匹配的页面
+	querys.map(function (url) {
+		var page = page_list[url];
+		if (page.match < PAGERANGELIMIT) {
+			delete page_list[url];
 		}
-		else {
-			rank = 100 - rank;
-			rank *= rank_shift;
-			rank = 100 - rank;
-		}
-		html = '<div class="crx_action_area"><button class="action_samearticle">自动生成回复</button></div>';
-		html += '<div class="crx_samearticle_mention">本文在网上有相似文章的总概率为：' + (Math.round(rank * 100) / 100) + '％</div>';
-		html += '<div class="crx_samearticle_mention">下列文章与本文很相似：</div>';
-		articles_mention = '以下文章与您这篇文章非常相似：\n\n';
-		result.map(function (site) {
-			console.log(site.title, Math.round(site.rank), site.link, site.line);
-			html += '<div class="crx_samearticle_lemma"><a class="crx_samearticle_link" href="' + site.link + '" target="_blank">' + site.title + '</a><span class="crx_samearticle_rate">局部相似度：' + (Math.round(site.rank * 100) / 100) + '％</span><span class="crx_samearticle_rate"><a href="' + site.search_url + '" target="_blank">查看搜索页</a></span></div>';
-			articles_mention += '《' + site.title + '》（' + site.link + '）\n';
-		});
-	}
-	else {
+	});
+	querys = Object.keys(page_list);
+
+	// 结果排序
+	querys = querys.map(function (url) {
+		return page_list[url];
+	});
+	querys.sort(function (pg1, pg2) {
+		return pg2.match - pg1.match;
+	});
+
+	// 生成结果
+	if (keyword_match === 0 && page_match === 0) {
 		html += '<div class="crx_samearticle_mention">目前网上没有文章与这篇文章相似！</div>';
 	}
+	else {
+		html = '<div class="crx_action_area"><button class="action_samearticle">自动生成回复</button></div>';
+		html += '<div class="crx_samearticle_mention">本文在网上有相似文章的总概率为：' + (Math.round(page_match * 10000) / 100) + '％，关键字匹配率为：' + (Math.round(keyword_match * 10000) / 100) + '％</div>';
+		html += '<div class="crx_samearticle_mention">下列关键字与本文匹配度很高：</div>';
+		lists.map(function (info) {
+			html += '<div class="crx_samearticle_lemma">' + info.line + '<span class="crx_samearticle_rate">匹配度：' + (Math.round(info.match * 10000) / 100) + '％</span><span class="crx_samearticle_rate">匹配文章数：' + (info.pages.length) + '</span></div>';
+		});
+		html += '<div class="crx_samearticle_mention">　　　　</div>';
+		html += '<div class="crx_samearticle_mention">下列文章与本文很相似：</div>';
+		articles_mention = '以下文章与您这篇文章非常相似：\n\n';
+		querys.map(function (page) {
+			html += '<div class="crx_samearticle_lemma"><a class="crx_samearticle_link" href="' + page.url + '" target="_blank">' + page.title + '</a><span class="crx_samearticle_rate">相似度：' + (Math.round(page.match * 10000) / 100) + '％</span></div>';
+			var ranks = Object.keys(page.rank);
+			ranks.sort(function (pr1, pr2) {
+				return page.rank[pr2] - page.rank[pr1];
+			});
+			ranks.map(function (rank) {
+				var string = [], index = 0;
+				keyword_list[rank].querys.map(function (query) {
+					index ++;
+					string.push('<a href="' + query + '" target="_blank">搜索页[' + index + ']</a>');
+				});
+				html += '<div class="crx_samearticle_lemma">　　<span class="crx_samearticle_rate">' + rank + '　　　　匹配度：' + (Math.round(page.rank[rank] * 100) / 100) + '%</span></div>';
+				html += '<div class="crx_samearticle_lemma">　　　　<span class="crx_samearticle_rate">' + string.join('，') + '</span></div>';
+			});
+			articles_mention += '《' + page.title + '》（' + page.url + '）\n';
+		});
+	}
+
 	// Set Mention
 	frame_content.innerHTML = html;
-
 	// Show UI
 	showFrame();
 }
